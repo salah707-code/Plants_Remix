@@ -1,0 +1,8 @@
+{
+  "name": "Remix plant-encyclopedia-mobile",
+  "description": "Imported from GitHub: salah707-code/plant-encyclopedia-mobile",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
