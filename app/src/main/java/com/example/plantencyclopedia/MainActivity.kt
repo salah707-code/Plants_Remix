@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalFlorist
@@ -30,11 +30,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -50,8 +49,9 @@ import com.example.plantencyclopedia.ui.screens.FamiliesScreen
 import com.example.plantencyclopedia.ui.screens.HomeScreen
 import com.example.plantencyclopedia.ui.screens.PlantDetailScreen
 import com.example.plantencyclopedia.ui.screens.PlantsCatalogScreen
+import com.example.plantencyclopedia.ui.screens.SecurityLockScreen
 import com.example.plantencyclopedia.ui.screens.SettingsScreen
-import com.example.plantencyclopedia.ui.theme.BackgroundSage
+import com.example.plantencyclopedia.ui.screens.StatisticsScreen
 import com.example.plantencyclopedia.ui.theme.CardBorder
 import com.example.plantencyclopedia.ui.theme.CardSurface
 import com.example.plantencyclopedia.ui.theme.PlantEncyclopediaTheme
@@ -67,10 +67,16 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PlantEncyclopediaTheme {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    PlantEncyclopediaApp(viewModel = viewModel)
-                }
+            val appTheme by viewModel.appTheme.collectAsStateWithLifecycle()
+            val colorPalette by viewModel.colorPalette.collectAsStateWithLifecycle()
+            val layoutDirectionPreference by viewModel.layoutDirectionPreference.collectAsStateWithLifecycle()
+
+            PlantEncyclopediaTheme(
+                themeMode = appTheme,
+                colorPalette = colorPalette,
+                layoutDirectionPreference = layoutDirectionPreference
+            ) {
+                PlantEncyclopediaApp(viewModel = viewModel)
             }
         }
     }
@@ -93,28 +99,52 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
     val editingPlant by viewModel.editingPlant.collectAsStateWithLifecycle()
     val showAddDialog by viewModel.showAddDialog.collectAsStateWithLifecycle()
+    val isAppLocked by viewModel.isAppLocked.collectAsStateWithLifecycle()
+    val actionMessage by viewModel.actionMessage.collectAsStateWithLifecycle()
+    val statistics by viewModel.statistics.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(actionMessage) {
+        actionMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearActionMessage()
+        }
+    }
+
+    if (isAppLocked) {
+        SecurityLockScreen(
+            onUnlockWithPin = viewModel::unlockWithPin,
+            onUnlockBiometric = viewModel::unlockBiometric
+        )
+        return
+    }
 
     val navItems = listOf(
         NavItem("الرئيسية", Icons.Default.Home, "nav_home"),
         NavItem("النباتات", Icons.Default.LocalFlorist, "nav_plants"),
         NavItem("الفصائل", Icons.Default.Category, "nav_families"),
+        NavItem("الإحصائيات", Icons.Default.BarChart, "nav_stats"),
         NavItem("الإعدادات", Icons.Default.Settings, "nav_settings")
     )
 
     if (detailPlant != null) {
         PlantDetailScreen(
             plant = detailPlant!!,
+            allPlants = allPlants,
             onBack = viewModel::closePlantDetail,
             onToggleFavorite = viewModel::toggleFavorite,
-            onEditPlant = viewModel::onStartEditPlant
+            onEditPlant = viewModel::onStartEditPlant,
+            onCopyPlant = viewModel::copyPlant,
+            onDeletePlant = viewModel::deletePlant,
+            onAddImage = viewModel::addImageToPlant,
+            onRemoveImage = viewModel::removeImageFromPlant,
+            onSetPrimaryImage = viewModel::setPrimaryImage,
+            onSelectRelatedPlant = viewModel::onPlantSelected
         )
     } else {
         Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BackgroundSage),
+            modifier = Modifier.fillMaxSize(),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
                 Surface(
@@ -128,7 +158,9 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
                         containerColor = CardSurface,
                         contentColor = SageGreenDark,
                         tonalElevation = 0.dp,
-                        modifier = Modifier.navigationBarsPadding().height(68.dp)
+                        modifier = Modifier
+                            .navigationBarsPadding()
+                            .height(68.dp)
                     ) {
                         navItems.forEach { item ->
                             val isSelected = currentTab == item.title
@@ -199,7 +231,14 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
                         onToggleFavorite = viewModel::toggleFavorite
                     )
 
-                    "الإعدادات" -> SettingsScreen()
+                    "الإحصائيات" -> StatisticsScreen(
+                        stats = statistics,
+                        onPlantSelect = viewModel::onPlantSelected
+                    )
+
+                    "الإعدادات" -> SettingsScreen(
+                        viewModel = viewModel
+                    )
                 }
             }
         }
@@ -210,8 +249,22 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
         EditPlantDialog(
             plant = plant,
             onDismiss = viewModel::onDismissEditDialog,
-            onSave = { name, english, scientific, family, usage, chemicals, note ->
-                viewModel.saveEditedPlant(plant, name, english, scientific, family, usage, chemicals, note)
+            onSave = { name, english, scientific, family, usage, chemicals, note, habitat, partsUsed, preparation, precautions, growthForm ->
+                viewModel.saveEditedPlant(
+                    plant = plant,
+                    name = name,
+                    english = english,
+                    scientific = scientific,
+                    family = family,
+                    usage = usage,
+                    chemicals = chemicals,
+                    note = note,
+                    habitat = habitat,
+                    partsUsed = partsUsed,
+                    preparation = preparation,
+                    precautions = precautions,
+                    growthForm = growthForm
+                )
             }
         )
     }
@@ -219,9 +272,24 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
     if (showAddDialog) {
         AddPlantDialog(
             onDismiss = { viewModel.onShowAddDialog(false) },
-            onAdd = { name, english, scientific, family, usage, chemicals, note, image ->
-                viewModel.addNewPlant(name, english, scientific, family, usage, chemicals, note, image)
+            onAdd = { name, english, scientific, family, usage, chemicals, note, image, habitat, partsUsed, preparation, precautions, growthForm ->
+                viewModel.addNewPlant(
+                    name = name,
+                    english = english,
+                    scientific = scientific,
+                    family = family,
+                    usage = usage,
+                    chemicals = chemicals,
+                    note = note,
+                    image = image,
+                    habitat = habitat,
+                    partsUsed = partsUsed,
+                    preparation = preparation,
+                    precautions = precautions,
+                    growthForm = growthForm
+                )
             }
         )
     }
 }
+

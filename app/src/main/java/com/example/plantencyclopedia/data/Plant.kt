@@ -16,7 +16,35 @@ data class Plant(
     val chemicals: List<String>,
     val note: String,
     val image: String,
-    val isFavorite: Boolean = false
+    val images: List<String> = emptyList(),
+    val habitat: String = "",
+    val partsUsed: String = "",
+    val preparation: String = "",
+    val precautions: String = "",
+    val growthForm: String = "",
+    val isFavorite: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val viewCount: Int = 0
+) {
+    fun getAllImagesList(): List<String> {
+        val list = mutableListOf<String>()
+        if (image.isNotBlank()) list.add(image)
+        images.forEach { if (it.isNotBlank() && !list.contains(it)) list.add(it) }
+        return list
+    }
+
+    fun getPrimaryImage(): String {
+        return images.firstOrNull { it.isNotBlank() } ?: image
+    }
+}
+
+@Entity(tableName = "plant_history")
+data class PlantHistory(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val plantId: Int,
+    val viewedAt: Long = System.currentTimeMillis()
 )
 
 class Converters {
@@ -31,3 +59,4 @@ class Converters {
         return value.split("||").map { it.trim() }.filter { it.isNotEmpty() }
     }
 }
+

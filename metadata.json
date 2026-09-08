@@ -1,6 +1,6 @@
 {
-  "name": "موسوعة النباتات",
-  "description": "موسوعة ودليل شامل للنباتات الطبية والعطرية مع شاشات تفاصيل مدعمة بصور ومواد فعالة",
+  "name": "الينبوت",
+  "description": "موسوعة ودليل نباتي احترافي شامل للنباتات الطبية والعطرية مع إدارة الصور، النسخ الاحتياطي، استيراد وتصدير Excel، والأمان المحلي",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

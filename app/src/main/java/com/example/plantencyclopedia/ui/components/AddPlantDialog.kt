@@ -30,7 +30,21 @@ import com.example.plantencyclopedia.ui.theme.TextSecondary
 @Composable
 fun AddPlantDialog(
     onDismiss: () -> Unit,
-    onAdd: (name: String, english: String, scientific: String, family: String, usage: String, chemicals: List<String>, note: String, image: String) -> Unit
+    onAdd: (
+        name: String,
+        english: String,
+        scientific: String,
+        family: String,
+        usage: String,
+        chemicals: List<String>,
+        note: String,
+        image: String,
+        habitat: String,
+        partsUsed: String,
+        preparation: String,
+        precautions: String,
+        growthForm: String
+    ) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var english by remember { mutableStateOf("") }
@@ -39,6 +53,11 @@ fun AddPlantDialog(
     var usage by remember { mutableStateOf("علاجية") }
     var chemicalsText by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
+    var habitat by remember { mutableStateOf("") }
+    var partsUsed by remember { mutableStateOf("") }
+    var preparation by remember { mutableStateOf("") }
+    var precautions by remember { mutableStateOf("") }
+    var growthForm by remember { mutableStateOf("عشب معمر") }
     var image by remember { mutableStateOf("https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=800&q=85") }
 
     AlertDialog(
@@ -108,9 +127,51 @@ fun AddPlantDialog(
                 )
 
                 OutlinedTextField(
+                    value = habitat,
+                    onValueChange = { habitat = it },
+                    label = { Text("الموطن والبيئة الطبيعية") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("add_habitat_input")
+                )
+
+                OutlinedTextField(
+                    value = partsUsed,
+                    onValueChange = { partsUsed = it },
+                    label = { Text("الأجزاء المستعملة (الأوراق / الأزهار...)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("add_parts_used_input")
+                )
+
+                OutlinedTextField(
+                    value = preparation,
+                    onValueChange = { preparation = it },
+                    label = { Text("طريقة التحضير والاستعمال") },
+                    singleLine = false,
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth().testTag("add_preparation_input")
+                )
+
+                OutlinedTextField(
+                    value = precautions,
+                    onValueChange = { precautions = it },
+                    label = { Text("محاذير وتنبيهات الاستخدام") },
+                    singleLine = false,
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth().testTag("add_precautions_input")
+                )
+
+                OutlinedTextField(
+                    value = growthForm,
+                    onValueChange = { growthForm = it },
+                    label = { Text("طبيعة النمو (شجيرة / عشب معمر...)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("add_growth_form_input")
+                )
+
+                OutlinedTextField(
                     value = note,
                     onValueChange = { note = it },
-                    label = { Text("الوصف والملاحظات") },
+                    label = { Text("الوصف والملاحظات الشاملة") },
                     singleLine = false,
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth().testTag("add_note_input")
@@ -124,7 +185,10 @@ fun AddPlantDialog(
                         .split("،", ",")
                         .map { it.trim() }
                         .filter { it.isNotEmpty() }
-                    onAdd(name, english, scientific, family, usage, chemList, note, image)
+                    onAdd(
+                        name, english, scientific, family, usage, chemList, note, image,
+                        habitat, partsUsed, preparation, precautions, growthForm
+                    )
                 },
                 enabled = name.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(containerColor = SageGreen),
@@ -145,3 +209,4 @@ fun AddPlantDialog(
         containerColor = CardSurface
     )
 }
+

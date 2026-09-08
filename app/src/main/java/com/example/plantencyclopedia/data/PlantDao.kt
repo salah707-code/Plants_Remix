@@ -13,6 +13,9 @@ interface PlantDao {
     @Query("SELECT * FROM plants ORDER BY id ASC")
     fun getAllPlants(): Flow<List<Plant>>
 
+    @Query("SELECT * FROM plants WHERE isFavorite = 1 ORDER BY id DESC")
+    fun getFavoritePlants(): Flow<List<Plant>>
+
     @Query("SELECT * FROM plants WHERE id = :id")
     suspend fun getPlantById(id: Int): Plant?
 
@@ -31,6 +34,28 @@ interface PlantDao {
     @Delete
     suspend fun delete(plant: Plant)
 
+    @Query("DELETE FROM plants WHERE id = :id")
+    suspend fun deleteById(id: Int)
+
+    @Query("DELETE FROM plants")
+    suspend fun deleteAll()
+
     @Query("UPDATE plants SET isFavorite = NOT isFavorite WHERE id = :id")
     suspend fun toggleFavorite(id: Int)
+
+    @Query("UPDATE plants SET viewCount = viewCount + 1 WHERE id = :id")
+    suspend fun incrementViewCount(id: Int)
+
+    @Query("SELECT * FROM plants ORDER BY viewCount DESC LIMIT :limit")
+    fun getMostViewedPlants(limit: Int = 5): Flow<List<Plant>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHistory(history: PlantHistory)
+
+    @Query("SELECT * FROM plant_history ORDER BY viewedAt DESC LIMIT :limit")
+    fun getRecentHistory(limit: Int = 20): Flow<List<PlantHistory>>
+
+    @Query("DELETE FROM plant_history")
+    suspend fun clearHistory()
 }
+

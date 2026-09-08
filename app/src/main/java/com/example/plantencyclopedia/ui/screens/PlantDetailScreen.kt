@@ -1,7 +1,11 @@
 package com.example.plantencyclopedia.ui.screens
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,52 +13,17 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LocalFlorist
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Spa
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,30 +43,24 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.plantencyclopedia.data.Plant
-import com.example.plantencyclopedia.ui.theme.BackgroundSage
-import com.example.plantencyclopedia.ui.theme.CardBorder
-import com.example.plantencyclopedia.ui.theme.CardSurface
-import com.example.plantencyclopedia.ui.theme.ChemicalTagBg
-import com.example.plantencyclopedia.ui.theme.ChemicalTagGold
-import com.example.plantencyclopedia.ui.theme.HerbGold
-import com.example.plantencyclopedia.ui.theme.HerbGoldContainer
-import com.example.plantencyclopedia.ui.theme.SageGreen
-import com.example.plantencyclopedia.ui.theme.SageGreenContainer
-import com.example.plantencyclopedia.ui.theme.SageGreenDark
-import com.example.plantencyclopedia.ui.theme.SageGreenLight
-import com.example.plantencyclopedia.ui.theme.TextMuted
-import com.example.plantencyclopedia.ui.theme.TextPrimary
-import com.example.plantencyclopedia.ui.theme.TextSecondary
-import com.example.plantencyclopedia.ui.theme.VerifiedBadgeBg
-import com.example.plantencyclopedia.ui.theme.VerifiedBadgeText
+import com.example.plantencyclopedia.images.ImageStorageManager
+import com.example.plantencyclopedia.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PlantDetailScreen(
     plant: Plant,
+    allPlants: List<Plant> = emptyList(),
     onBack: () -> Unit,
     onToggleFavorite: (Plant) -> Unit,
     onEditPlant: (Plant) -> Unit,
+    onCopyPlant: (Plant) -> Unit = {},
+    onDeletePlant: (Plant) -> Unit = {},
+    onAddImage: (Plant, String) -> Unit = { _, _ -> },
+    onRemoveImage: (Plant, String) -> Unit = { _, _ -> },
+    onSetPrimaryImage: (Plant, String) -> Unit = { _, _ -> },
+    onSelectRelatedPlant: (Plant) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BackHandler(enabled = true) {
@@ -105,10 +68,47 @@ fun PlantDetailScreen(
     }
 
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
+
+    var activeImageIndex by remember(plant.id, plant.images) { mutableIntStateOf(0) }
     var isImageZoomed by remember { mutableStateOf(false) }
     var showCopiedToast by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    val allImageList = remember(plant.images, plant.image) {
+        val list = plant.getAllImagesList()
+        if (list.isEmpty() && plant.image.isNotBlank()) listOf(plant.image) else list
+    }
+
+    val currentDisplayImage = remember(activeImageIndex, allImageList) {
+        if (allImageList.isNotEmpty() && activeImageIndex in allImageList.indices) {
+            allImageList[activeImageIndex]
+        } else {
+            plant.image
+        }
+    }
+
+    // Photo picker for adding images
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val localPath = ImageStorageManager.saveImageFromUri(context, uri)
+                    onAddImage(plant, localPath)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    val relatedPlants = remember(plant.id, plant.chemicals, plant.family, allPlants) {
+        val targetChems = plant.chemicals.map { it.trim().lowercase() }.toSet()
+        allPlants.filter { it.id != plant.id && (it.family == plant.family || it.chemicals.any { c -> targetChems.contains(c.trim().lowercase()) }) }.take(5)
+    }
+
 
     val plantHabit = remember(plant.family, plant.name) {
         when {
@@ -194,7 +194,7 @@ fun PlantDetailScreen(
                     .testTag("detail_hero_image_container")
             ) {
                 AsyncImage(
-                    model = plant.image,
+                    model = currentDisplayImage,
                     contentDescription = plant.name,
                     modifier = Modifier
                         .fillMaxSize()
@@ -251,7 +251,7 @@ fun PlantDetailScreen(
                         color = Color.Black.copy(alpha = 0.45f),
                         contentColor = Color.White,
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(42.dp)
                             .testTag("detail_back_button")
                     ) {
                         Box(contentAlignment = Alignment.Center) {
@@ -259,14 +259,14 @@ fun PlantDetailScreen(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "رجوع",
                                 tint = Color.White,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    // Actions: Zoom, Share, Favorite, Edit
+                    // Actions: Zoom, Copy Plant, Share, Favorite, Edit, Delete
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Zoom Image Action
@@ -276,7 +276,7 @@ fun PlantDetailScreen(
                             color = Color.Black.copy(alpha = 0.45f),
                             contentColor = Color.White,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(38.dp)
                                 .testTag("detail_zoom_button")
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -284,7 +284,27 @@ fun PlantDetailScreen(
                                     imageVector = Icons.Default.ZoomIn,
                                     contentDescription = "تكبير الصورة",
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        // Duplicate/Copy Plant Action
+                        Surface(
+                            onClick = { onCopyPlant(plant) },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                            contentColor = Color.White,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("detail_copy_plant_button")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Difference,
+                                    contentDescription = "نسخ النبات",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -319,7 +339,7 @@ fun PlantDetailScreen(
                             color = Color.Black.copy(alpha = 0.45f),
                             contentColor = Color.White,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(38.dp)
                                 .testTag("detail_share_button")
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -327,7 +347,7 @@ fun PlantDetailScreen(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = "مشاركة",
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -339,7 +359,7 @@ fun PlantDetailScreen(
                             color = Color.Black.copy(alpha = 0.45f),
                             contentColor = if (plant.isFavorite) HerbGold else Color.White,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(38.dp)
                                 .testTag("detail_favorite_button")
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -347,7 +367,7 @@ fun PlantDetailScreen(
                                     imageVector = if (plant.isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                     contentDescription = "المفضلة",
                                     tint = if (plant.isFavorite) HerbGold else Color.White,
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -359,7 +379,7 @@ fun PlantDetailScreen(
                             color = Color.Black.copy(alpha = 0.45f),
                             contentColor = Color.White,
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(38.dp)
                                 .testTag("detail_edit_button")
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -367,7 +387,27 @@ fun PlantDetailScreen(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "تعديل",
                                     tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        // Delete Button
+                        Surface(
+                            onClick = { showDeleteConfirmDialog = true },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                            contentColor = Color.White,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("detail_delete_button")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "حذف",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -450,6 +490,140 @@ fun PlantDetailScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Multi-Image Gallery Card
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp)),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Collections,
+                                    contentDescription = null,
+                                    tint = SageGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "معرض صور النبات (${allImageList.size})",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SageGreenDark
+                                )
+                            }
+
+                            // Add Image button
+                            Button(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = SageGreen)
+                            ) {
+                                Icon(imageVector = Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("إضافة صورة", fontSize = 11.sp)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Thumbnails row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            allImageList.forEachIndexed { idx, imgUrl ->
+                                val isSelected = idx == activeImageIndex
+                                Box(
+                                    modifier = Modifier
+                                        .size(62.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(
+                                            width = if (isSelected) 2.5.dp else 1.dp,
+                                            color = if (isSelected) SageGreen else CardBorder,
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable { activeImageIndex = idx }
+                                ) {
+                                    AsyncImage(
+                                        model = imgUrl,
+                                        contentDescription = "صورة $idx",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    if (idx == 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .fillMaxWidth()
+                                                .background(Color.Black.copy(alpha = 0.6f))
+                                                .padding(vertical = 1.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("رئيسية", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Actions for selected thumbnail
+                        if (allImageList.isNotEmpty() && activeImageIndex in allImageList.indices) {
+                            val selectedImg = allImageList[activeImageIndex]
+                            val isPrimary = activeImageIndex == 0
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!isPrimary) {
+                                    TextButton(
+                                        onClick = {
+                                            onSetPrimaryImage(plant, selectedImg)
+                                            activeImageIndex = 0
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Star, contentDescription = null, modifier = Modifier.size(14.dp), tint = HerbGold)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("تعيين كصورة رئيسية", fontSize = 11.sp, color = HerbGold)
+                                    }
+                                }
+
+                                if (allImageList.size > 1) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    TextButton(
+                                        onClick = {
+                                            onRemoveImage(plant, selectedImg)
+                                            activeImageIndex = 0
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("حذف الصورة", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Main Nomenclature Card
                 Surface(
                     modifier = Modifier
@@ -925,11 +1099,109 @@ fun PlantDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "يُنصح بالاعتدال في تناول النباتات الطبية وعدم الإفراط بالجرعات. يجب استشارة الطبيب المختص للحوامل والمرضعات وأصحاب الأمراض المزمنة قبل استخدام المستخلصات المركزة أو الزيوت العطرية النقية.",
+                                text = if (plant.precautions.isNotBlank()) plant.precautions else "يُنصح بالاعتدال في تناول النباتات الطبية وعدم الإفراط بالجرعات. يجب استشارة الطبيب المختص للحوامل والمرضعات وأصحاب الأمراض المزمنة قبل استخدام المستخلصات المركزة أو الزيوت العطرية النقية.",
                                 color = TextPrimary,
                                 fontSize = 11.sp,
                                 lineHeight = 17.sp
                             )
+                        }
+                    }
+                }
+
+                // Botanical Ecology & Habitat Card
+                if (plant.habitat.isNotBlank() || plant.partsUsed.isNotBlank() || plant.growthForm.isNotBlank()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp)),
+                        color = CardSurface,
+                        border = BorderStroke(1.dp, CardBorder),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "الخصائص النباتية والموطن الطبيعي",
+                                color = SageGreenDark,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            if (plant.habitat.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.Public, contentDescription = null, tint = SageGreen, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "الموطن: ${plant.habitat}", fontSize = 12.sp, color = TextPrimary)
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            if (plant.partsUsed.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.Spa, contentDescription = null, tint = SageGreen, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "الأجزاء المستعملة: ${plant.partsUsed}", fontSize = 12.sp, color = TextPrimary)
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            if (plant.growthForm.isNotBlank()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(imageVector = Icons.Default.Nature, contentDescription = null, tint = SageGreen, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(text = "طبيعة النمو: ${plant.growthForm}", fontSize = 12.sp, color = TextPrimary)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Related Plants Card
+                if (relatedPlants.isNotEmpty()) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp)),
+                        color = CardSurface,
+                        border = BorderStroke(1.dp, CardBorder),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(imageVector = Icons.Default.DeviceHub, contentDescription = null, tint = SageGreen, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "نباتات ذات صلة (نفس الفصيلة أو المواد الفعالة)",
+                                    color = SageGreenDark,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                relatedPlants.forEach { related ->
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onSelectRelatedPlant(related) },
+                                        shape = RoundedCornerShape(10.dp),
+                                        color = SageGreenContainer.copy(alpha = 0.5f)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column {
+                                                Text(text = related.name, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SageGreenDark)
+                                                Text(text = "${related.family} • ${related.usage}", fontSize = 10.sp, color = TextSecondary)
+                                            }
+                                            Icon(imageVector = Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = SageGreen, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -999,6 +1271,35 @@ fun PlantDetailScreen(
         }
     }
 
+    // Delete confirmation dialog
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = {
+                Text("تأكيد حذف النبات", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text("هل أنت متأكد من حذف نبات \"${plant.name}\" من الموسوعة؟ لا يمكن التراجع عن هذا الإجراء.")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeletePlant(plant)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("حذف نهائي")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("إلغاء")
+                }
+            }
+        )
+    }
+
     // Full-screen Image Zoom Modal Dialog
     if (isImageZoomed) {
         Dialog(
@@ -1013,7 +1314,7 @@ fun PlantDetailScreen(
                     .testTag("zoomed_image_dialog")
             ) {
                 AsyncImage(
-                    model = plant.image,
+                    model = currentDisplayImage,
                     contentDescription = plant.name,
                     modifier = Modifier
                         .fillMaxWidth()
