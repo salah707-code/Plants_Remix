@@ -1,6 +1,6 @@
 {
-  "name": "Remix plant-encyclopedia-mobile",
-  "description": "Imported from GitHub: salah707-code/plant-encyclopedia-mobile",
+  "name": "موسوعة النباتات",
+  "description": "موسوعة ودليل شامل للنباتات الطبية والعطرية مع شاشات تفاصيل مدعمة بصور ومواد فعالة",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

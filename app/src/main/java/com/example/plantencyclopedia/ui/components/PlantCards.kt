@@ -426,7 +426,8 @@ fun PlantRowItem(
 fun PlantDetailCard(
     plant: Plant,
     onEditClick: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onViewDetailClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier
@@ -441,8 +442,13 @@ fun PlantDetailCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(190.dp)
+                    .height(200.dp)
                     .background(SageGreenLight)
+                    .then(
+                        if (onViewDetailClick != null) {
+                            Modifier.clickable { onViewDetailClick() }
+                        } else Modifier
+                    )
             ) {
                 AsyncImage(
                     model = plant.image,
@@ -629,6 +635,29 @@ fun PlantDetailCard(
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
+
+                if (onViewDetailClick != null) {
+                    Button(
+                        onClick = onViewDetailClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("open_detail_screen_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SageGreen,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            text = "عرض كامل التفاصيل والصور المكبرة  ‹",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 Button(
                     onClick = onEditClick,

@@ -179,7 +179,8 @@ fun HomeScreen(
                 PlantDetailCard(
                     plant = selectedPlant,
                     onEditClick = { onEditPlant(selectedPlant) },
-                    onToggleFavorite = { onToggleFavorite(selectedPlant) }
+                    onToggleFavorite = { onToggleFavorite(selectedPlant) },
+                    onViewDetailClick = { onPlantSelect(selectedPlant) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }

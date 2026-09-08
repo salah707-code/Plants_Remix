@@ -29,6 +29,9 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedPlant = MutableStateFlow<Plant?>(null)
     val selectedPlant: StateFlow<Plant?> = _selectedPlant.asStateFlow()
 
+    private val _detailPlant = MutableStateFlow<Plant?>(null)
+    val detailPlant: StateFlow<Plant?> = _detailPlant.asStateFlow()
+
     private val _currentTab = MutableStateFlow("الرئيسية")
     val currentTab: StateFlow<String> = _currentTab.asStateFlow()
 
@@ -70,7 +73,7 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = InitialPlantData.defaultPlants
         )
 
-        // Select initial plant
+        // Select initial plant and sync detail plant
         viewModelScope.launch {
             allPlants.collect { list ->
                 if (_selectedPlant.value == null && list.isNotEmpty()) {
@@ -79,6 +82,12 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
                     val updated = list.find { it.id == _selectedPlant.value?.id }
                     if (updated != null) {
                         _selectedPlant.value = updated
+                    }
+                }
+                if (_detailPlant.value != null) {
+                    val updatedDetail = list.find { it.id == _detailPlant.value?.id }
+                    if (updatedDetail != null) {
+                        _detailPlant.value = updatedDetail
                     }
                 }
             }
@@ -95,6 +104,16 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
 
     fun onPlantSelected(plant: Plant) {
         _selectedPlant.value = plant
+        _detailPlant.value = plant
+    }
+
+    fun openPlantDetail(plant: Plant) {
+        _selectedPlant.value = plant
+        _detailPlant.value = plant
+    }
+
+    fun closePlantDetail() {
+        _detailPlant.value = null
     }
 
     fun onTabSelected(tab: String) {
@@ -116,6 +135,9 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleFavorite(plant: Plant) {
         viewModelScope.launch {
             repository.toggleFavorite(plant.id)
+            if (_detailPlant.value?.id == plant.id) {
+                _detailPlant.value = _detailPlant.value?.copy(isFavorite = !plant.isFavorite)
+            }
         }
     }
 
@@ -141,6 +163,9 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
             )
             repository.updatePlant(updated)
             _selectedPlant.value = updated
+            if (_detailPlant.value?.id == updated.id) {
+                _detailPlant.value = updated
+            }
             _editingPlant.value = null
         }
     }

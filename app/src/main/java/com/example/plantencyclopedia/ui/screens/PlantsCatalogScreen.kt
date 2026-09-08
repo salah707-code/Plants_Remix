@@ -151,7 +151,8 @@ fun PlantsCatalogScreen(
                     PlantDetailCard(
                         plant = selectedPlant,
                         onEditClick = { onEditPlant(selectedPlant) },
-                        onToggleFavorite = { onToggleFavorite(selectedPlant) }
+                        onToggleFavorite = { onToggleFavorite(selectedPlant) },
+                        onViewDetailClick = { onPlantSelect(selectedPlant) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }

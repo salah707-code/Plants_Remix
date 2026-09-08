@@ -48,6 +48,7 @@ import com.example.plantencyclopedia.ui.components.AddPlantDialog
 import com.example.plantencyclopedia.ui.components.EditPlantDialog
 import com.example.plantencyclopedia.ui.screens.FamiliesScreen
 import com.example.plantencyclopedia.ui.screens.HomeScreen
+import com.example.plantencyclopedia.ui.screens.PlantDetailScreen
 import com.example.plantencyclopedia.ui.screens.PlantsCatalogScreen
 import com.example.plantencyclopedia.ui.screens.SettingsScreen
 import com.example.plantencyclopedia.ui.theme.BackgroundSage
@@ -86,6 +87,7 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
     val allPlants by viewModel.allPlants.collectAsStateWithLifecycle()
     val visiblePlants by viewModel.filteredPlants.collectAsStateWithLifecycle()
     val selectedPlant by viewModel.selectedPlant.collectAsStateWithLifecycle()
+    val detailPlant by viewModel.detailPlant.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
@@ -101,98 +103,104 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
         NavItem("الإعدادات", Icons.Default.Settings, "nav_settings")
     )
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundSage),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("bottom_nav_bar"),
-                color = CardSurface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
-            ) {
-                NavigationBar(
-                    containerColor = CardSurface,
-                    contentColor = SageGreenDark,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier.navigationBarsPadding().height(68.dp)
+    if (detailPlant != null) {
+        PlantDetailScreen(
+            plant = detailPlant!!,
+            onBack = viewModel::closePlantDetail,
+            onToggleFavorite = viewModel::toggleFavorite,
+            onEditPlant = viewModel::onStartEditPlant
+        )
+    } else {
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BackgroundSage),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            bottomBar = {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("bottom_nav_bar"),
+                    color = CardSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                 ) {
-                    navItems.forEach { item ->
-                        val isSelected = currentTab == item.title
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = { viewModel.onTabSelected(item.title) },
-                            icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = item.title,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = SageGreen,
-                                selectedTextColor = SageGreen,
-                                indicatorColor = SageGreenContainer,
-                                unselectedIconColor = TextMuted,
-                                unselectedTextColor = TextMuted
-                            ),
-                            modifier = Modifier.testTag(item.testTag)
-                        )
+                    NavigationBar(
+                        containerColor = CardSurface,
+                        contentColor = SageGreenDark,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.navigationBarsPadding().height(68.dp)
+                    ) {
+                        navItems.forEach { item ->
+                            val isSelected = currentTab == item.title
+                            NavigationBarItem(
+                                selected = isSelected,
+                                onClick = { viewModel.onTabSelected(item.title) },
+                                icon = {
+                                    Icon(
+                                        imageVector = item.icon,
+                                        contentDescription = item.title,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        text = item.title,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = SageGreen,
+                                    selectedTextColor = SageGreen,
+                                    indicatorColor = SageGreenContainer,
+                                    unselectedIconColor = TextMuted,
+                                    unselectedTextColor = TextMuted
+                                ),
+                                modifier = Modifier.testTag(item.testTag)
+                            )
+                        }
                     }
                 }
             }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            when (currentTab) {
-                "الرئيسية" -> HomeScreen(
-                    allPlants = allPlants,
-                    visiblePlants = visiblePlants,
-                    selectedPlant = selectedPlant,
-                    searchQuery = searchQuery,
-                    activeFilter = selectedFilter,
-                    onSearchChange = viewModel::onSearchQueryChanged,
-                    onFilterSelect = viewModel::onFilterSelected,
-                    onPlantSelect = viewModel::onPlantSelected,
-                    onToggleFavorite = viewModel::toggleFavorite,
-                    onEditPlant = viewModel::onStartEditPlant,
-                    onSeeAllClick = { viewModel.onTabSelected("النباتات") },
-                    snackbarHostState = snackbarHostState
-                )
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                when (currentTab) {
+                    "الرئيسية" -> HomeScreen(
+                        allPlants = allPlants,
+                        visiblePlants = visiblePlants,
+                        selectedPlant = selectedPlant,
+                        searchQuery = searchQuery,
+                        activeFilter = selectedFilter,
+                        onSearchChange = viewModel::onSearchQueryChanged,
+                        onFilterSelect = viewModel::onFilterSelected,
+                        onPlantSelect = viewModel::onPlantSelected,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        onEditPlant = viewModel::onStartEditPlant,
+                        onSeeAllClick = { viewModel.onTabSelected("النباتات") },
+                        snackbarHostState = snackbarHostState
+                    )
 
-                "النباتات" -> PlantsCatalogScreen(
-                    plants = allPlants,
-                    selectedPlant = selectedPlant,
-                    onPlantSelect = viewModel::onPlantSelected,
-                    onToggleFavorite = viewModel::toggleFavorite,
-                    onEditPlant = viewModel::onStartEditPlant,
-                    onAddPlantClick = { viewModel.onShowAddDialog(true) }
-                )
+                    "النباتات" -> PlantsCatalogScreen(
+                        plants = allPlants,
+                        selectedPlant = selectedPlant,
+                        onPlantSelect = viewModel::onPlantSelected,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        onEditPlant = viewModel::onStartEditPlant,
+                        onAddPlantClick = { viewModel.onShowAddDialog(true) }
+                    )
 
-                "الفصائل" -> FamiliesScreen(
-                    plants = allPlants,
-                    onPlantSelect = {
-                        viewModel.onPlantSelected(it)
-                        viewModel.onTabSelected("الرئيسية")
-                    },
-                    onToggleFavorite = viewModel::toggleFavorite
-                )
+                    "الفصائل" -> FamiliesScreen(
+                        plants = allPlants,
+                        onPlantSelect = viewModel::onPlantSelected,
+                        onToggleFavorite = viewModel::toggleFavorite
+                    )
 
-                "الإعدادات" -> SettingsScreen()
+                    "الإعدادات" -> SettingsScreen()
+                }
             }
         }
     }
