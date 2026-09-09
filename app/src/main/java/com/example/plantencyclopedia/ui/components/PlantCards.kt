@@ -24,19 +24,31 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Difference
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -328,8 +340,14 @@ fun PlantRowItem(
     plant: Plant,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onCopy: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -417,7 +435,121 @@ fun PlantRowItem(
                     tint = if (plant.isFavorite) SageGreen else TextMuted
                 )
             }
+
+            // Quick Actions Menu (Edit, Copy, Delete)
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.testTag("menu_button_${plant.id}")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "خيارات النبتة",
+                        tint = TextMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    if (onEdit != null) {
+                        DropdownMenuItem(
+                            text = { Text("تعديل النبتة", fontSize = 13.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = SageGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onEdit()
+                            }
+                        )
+                    }
+
+                    if (onCopy != null) {
+                        DropdownMenuItem(
+                            text = { Text("نسخ السجل (تكرار)", fontSize = 13.sp) },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Difference,
+                                    contentDescription = null,
+                                    tint = SageGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onCopy()
+                            }
+                        )
+                    }
+
+                    if (onDelete != null) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "حذف النبتة",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteDialog = true
+                            }
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (showDeleteDialog && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = {
+                Text(
+                    text = "حذف النبتة",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("هل أنت متأكد من رغبتك في حذف سجل \"${plant.name}\" نهائياً من الموسوعة؟")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteDialog = false
+                        onDelete()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text("نعم، حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("إلغاء")
+                }
+            }
+        )
     }
 }
 
@@ -427,8 +559,12 @@ fun PlantDetailCard(
     plant: Plant,
     onEditClick: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onViewDetailClick: (() -> Unit)? = null
+    onViewDetailClick: (() -> Unit)? = null,
+    onCopyClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null
 ) {
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -659,31 +795,121 @@ fun PlantDetailCard(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                Button(
-                    onClick = onEditClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .testTag("edit_plant_button"),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SageGreenContainer,
-                        contentColor = SageGreen
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "تعديل بيانات وسجل النبات",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = onEditClick,
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(48.dp)
+                            .testTag("edit_plant_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SageGreenContainer,
+                            contentColor = SageGreen
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "تعديل",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    if (onCopyClick != null) {
+                        OutlinedButton(
+                            onClick = onCopyClick,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .testTag("copy_plant_button"),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Difference,
+                                contentDescription = null,
+                                tint = SageGreen,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "نسخ",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (onDeleteClick != null) {
+                        OutlinedButton(
+                            onClick = { showDeleteConfirmDialog = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .testTag("delete_plant_button"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "حذف",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmDialog && onDeleteClick != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = {
+                Text(
+                    text = "حذف النبتة",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("هل أنت متأكد من رغبتك في حذف سجل \"${plant.name}\" نهائياً من الموسوعة؟")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeleteClick()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text("نعم، حذف")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("إلغاء")
+                }
+            }
+        )
     }
 }

@@ -17,6 +17,8 @@ import com.example.plantencyclopedia.importexport.ExcelImportExportManager
 import com.example.plantencyclopedia.importexport.ImportMode
 import com.example.plantencyclopedia.importexport.ImportPreviewResult
 import com.example.plantencyclopedia.security.SecurityManager
+import com.example.plantencyclopedia.settings.AppFontColorStyle
+import com.example.plantencyclopedia.settings.AppFontSize
 import com.example.plantencyclopedia.settings.AppLayoutDirection
 import com.example.plantencyclopedia.settings.AppThemeMode
 import com.example.plantencyclopedia.settings.ColorPalette
@@ -37,9 +39,19 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
     val appTheme: StateFlow<AppThemeMode> = preferencesManager.themeMode
     val colorPalette: StateFlow<ColorPalette> = preferencesManager.colorPalette
     val layoutDirectionPreference: StateFlow<AppLayoutDirection> = preferencesManager.layoutDirection
+    val fontSize: StateFlow<AppFontSize> = preferencesManager.fontSize
+    val fontColorStyle: StateFlow<AppFontColorStyle> = preferencesManager.fontColorStyle
 
     fun setLayoutDirection(direction: AppLayoutDirection) {
         preferencesManager.setLayoutDirection(direction)
+    }
+
+    fun setFontSize(size: AppFontSize) {
+        preferencesManager.setFontSize(size)
+    }
+
+    fun setFontColorStyle(style: AppFontColorStyle) {
+        preferencesManager.setFontColorStyle(style)
     }
 
     val allPlants: StateFlow<List<Plant>>
@@ -169,7 +181,7 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Security Unlock
+    // Security Unlock & Login
     fun unlockWithPin(pin: String): Boolean {
         val valid = securityManager.verifyPin(pin)
         if (valid) {
@@ -178,25 +190,35 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
         return valid
     }
 
+    fun unlockWithPassword(password: String): Boolean {
+        val valid = securityManager.verifyPin(password)
+        if (valid) {
+            _isAppLocked.value = false
+        }
+        return valid
+    }
+
+    fun enterAsGuest() {
+        _isAppLocked.value = false
+    }
+
     fun unlockBiometric() {
         _isAppLocked.value = false
     }
 
     fun lockApp() {
-        if (securityManager.isSecurityEnabled()) {
-            _isAppLocked.value = true
-        }
+        _isAppLocked.value = true
     }
 
     fun setAppPin(pin: String) {
         securityManager.setPin(pin)
-        _actionMessage.value = "تم تعيين رمز الحماية بنجاح"
+        _actionMessage.value = "تم تعيين كلمة المرور بنجاح"
     }
 
     fun disableAppPin() {
         securityManager.disableSecurity()
         _isAppLocked.value = false
-        _actionMessage.value = "تم تعطيل قفل التطبيق"
+        _actionMessage.value = "تم تعطيل قفل التطبيق وكلمة المرور"
     }
 
     // Theme & Settings
@@ -455,6 +477,16 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
             val preview = ExcelImportExportManager.previewExcelCsv(
                 context = getApplication(),
                 sourceUri = uri,
+                existingPlants = allPlants.value
+            )
+            _importPreview.value = preview
+        }
+    }
+
+    fun previewExcelTextImport(text: String) {
+        viewModelScope.launch {
+            val preview = ExcelImportExportManager.previewPastedText(
+                text = text,
                 existingPlants = allPlants.value
             )
             _importPreview.value = preview

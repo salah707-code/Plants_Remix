@@ -11,12 +11,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowCompat
+import com.example.plantencyclopedia.settings.AppFontColorStyle
+import com.example.plantencyclopedia.settings.AppFontSize
 import com.example.plantencyclopedia.settings.AppLayoutDirection
 import com.example.plantencyclopedia.settings.AppThemeMode
 import com.example.plantencyclopedia.settings.ColorPalette
@@ -27,37 +30,59 @@ fun PlantEncyclopediaTheme(
     themeMode: AppThemeMode = AppThemeMode.SYSTEM,
     colorPalette: ColorPalette = ColorPalette.SAGE_HERBAL,
     layoutDirectionPreference: AppLayoutDirection = AppLayoutDirection.SYSTEM,
+    fontSize: AppFontSize = AppFontSize.MEDIUM,
+    fontColorStyle: AppFontColorStyle = AppFontColorStyle.DEFAULT,
     content: @Composable () -> Unit
 ) {
+    val isSystemDark = isSystemInDarkTheme()
     val isDark = when (themeMode) {
-        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+        AppThemeMode.SYSTEM -> isSystemDark
         AppThemeMode.LIGHT -> false
-        AppThemeMode.DARK -> true
+        AppThemeMode.DARK, AppThemeMode.AMOLED_BLACK -> true
     }
+    val isAmoled = themeMode == AppThemeMode.AMOLED_BLACK
 
     val (primaryColor, primaryDark, primaryLight, primaryContainer) = when (colorPalette) {
         ColorPalette.SAGE_HERBAL -> listOf(SageGreen, SageGreenDark, SageGreenLight, SageGreenContainer)
         ColorPalette.DESERT_GOLD -> listOf(DesertGold, DesertGoldDark, DesertGoldLight, DesertGoldContainer)
         ColorPalette.NATURAL_TEAL -> listOf(NaturalTeal, NaturalTealDark, NaturalTealLight, NaturalTealContainer)
+        ColorPalette.FOREST_EMERALD -> listOf(ForestEmerald, ForestEmeraldDark, ForestEmeraldLight, ForestEmeraldContainer)
+        ColorPalette.ROYAL_LAVENDER -> listOf(RoyalLavender, RoyalLavenderDark, RoyalLavenderLight, RoyalLavenderContainer)
+        ColorPalette.SUNSET_TERRACOTTA -> listOf(SunsetTerracotta, SunsetTerracottaDark, SunsetTerracottaLight, SunsetTerracottaContainer)
     }
 
+    // Resolve Font Color Styling
+    val resolvedTextColor = when (fontColorStyle) {
+        AppFontColorStyle.DEFAULT -> Color.Unspecified
+        AppFontColorStyle.HIGH_CONTRAST -> if (isDark) FontHighContrastDark else FontHighContrastLight
+        AppFontColorStyle.WARM_SEPIA -> if (isDark) FontSepiaDark else FontSepiaLight
+        AppFontColorStyle.FOREST_HERB -> if (isDark) FontBotanicalDark else FontBotanicalLight
+    }
+
+    val dynamicTypography = createPlantTypography(scale = fontSize.scale, textColor = resolvedTextColor)
+
     val colorScheme = if (isDark) {
+        val bg = if (isAmoled) AmoledBackground else DarkBackground
+        val surf = if (isAmoled) AmoledSurface else DarkSurface
+        val surfVar = if (isAmoled) AmoledSurfaceVariant else DarkSurfaceVariant
+        val border = if (isAmoled) AmoledBorder else DarkBorder
+
         darkColorScheme(
             primary = primaryLight,
             onPrimary = primaryDark,
             primaryContainer = primaryDark,
             onPrimaryContainer = primaryLight,
             secondary = HerbGold,
-            onSecondary = DarkSurface,
-            secondaryContainer = DarkSurfaceVariant,
+            onSecondary = surf,
+            secondaryContainer = surfVar,
             onSecondaryContainer = HerbGold,
-            background = DarkBackground,
-            onBackground = DarkTextPrimary,
-            surface = DarkSurface,
-            onSurface = DarkTextPrimary,
-            surfaceVariant = DarkSurfaceVariant,
+            background = bg,
+            onBackground = if (fontColorStyle != AppFontColorStyle.DEFAULT) resolvedTextColor else DarkTextPrimary,
+            surface = surf,
+            onSurface = if (fontColorStyle != AppFontColorStyle.DEFAULT) resolvedTextColor else DarkTextPrimary,
+            surfaceVariant = surfVar,
             onSurfaceVariant = DarkTextSecondary,
-            outline = DarkBorder
+            outline = border
         )
     } else {
         lightColorScheme(
@@ -70,9 +95,9 @@ fun PlantEncyclopediaTheme(
             secondaryContainer = HerbGoldContainer,
             onSecondaryContainer = HerbGold,
             background = BackgroundSage,
-            onBackground = TextPrimary,
+            onBackground = if (fontColorStyle != AppFontColorStyle.DEFAULT) resolvedTextColor else TextPrimary,
             surface = CardSurface,
-            onSurface = TextPrimary,
+            onSurface = if (fontColorStyle != AppFontColorStyle.DEFAULT) resolvedTextColor else TextPrimary,
             surfaceVariant = primaryLight,
             onSurfaceVariant = TextSecondary,
             outline = CardBorder
@@ -103,7 +128,12 @@ fun PlantEncyclopediaTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = (if (isDark) DarkBackground else BackgroundSage).toArgb()
+            val statusBarColor = if (isDark) {
+                if (isAmoled) AmoledBackground else DarkBackground
+            } else {
+                BackgroundSage
+            }
+            window.statusBarColor = statusBarColor.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !isDark
         }
     }
@@ -111,10 +141,11 @@ fun PlantEncyclopediaTheme(
     CompositionLocalProvider(LocalLayoutDirection provides resolvedLayoutDirection) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = PlantTypography,
+            typography = dynamicTypography,
             content = content
         )
     }
 }
+
 
 

@@ -47,6 +47,7 @@ import com.example.plantencyclopedia.ui.components.AddPlantDialog
 import com.example.plantencyclopedia.ui.components.EditPlantDialog
 import com.example.plantencyclopedia.ui.screens.FamiliesScreen
 import com.example.plantencyclopedia.ui.screens.HomeScreen
+import com.example.plantencyclopedia.ui.screens.LoginScreen
 import com.example.plantencyclopedia.ui.screens.PlantDetailScreen
 import com.example.plantencyclopedia.ui.screens.PlantsCatalogScreen
 import com.example.plantencyclopedia.ui.screens.SecurityLockScreen
@@ -113,9 +114,12 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
     }
 
     if (isAppLocked) {
-        SecurityLockScreen(
-            onUnlockWithPin = viewModel::unlockWithPin,
-            onUnlockBiometric = viewModel::unlockBiometric
+        LoginScreen(
+            securityManager = viewModel.securityManager,
+            onUnlockWithPassword = viewModel::unlockWithPassword,
+            onUnlockBiometric = viewModel::unlockBiometric,
+            onEnterAsGuest = viewModel::enterAsGuest,
+            onSetPassword = viewModel::setAppPin
         )
         return
     }
@@ -212,6 +216,8 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
                         onPlantSelect = viewModel::onPlantSelected,
                         onToggleFavorite = viewModel::toggleFavorite,
                         onEditPlant = viewModel::onStartEditPlant,
+                        onCopyPlant = viewModel::copyPlant,
+                        onDeletePlant = viewModel::deletePlant,
                         onSeeAllClick = { viewModel.onTabSelected("النباتات") },
                         snackbarHostState = snackbarHostState
                     )
@@ -222,6 +228,8 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
                         onPlantSelect = viewModel::onPlantSelected,
                         onToggleFavorite = viewModel::toggleFavorite,
                         onEditPlant = viewModel::onStartEditPlant,
+                        onCopyPlant = viewModel::copyPlant,
+                        onDeletePlant = viewModel::deletePlant,
                         onAddPlantClick = { viewModel.onShowAddDialog(true) }
                     )
 

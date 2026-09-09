@@ -62,6 +62,8 @@ fun PlantsCatalogScreen(
     onPlantSelect: (Plant) -> Unit,
     onToggleFavorite: (Plant) -> Unit,
     onEditPlant: (Plant) -> Unit,
+    onCopyPlant: (Plant) -> Unit = {},
+    onDeletePlant: (Plant) -> Unit = {},
     onAddPlantClick: () -> Unit
 ) {
     var query by remember { mutableStateOf("") }
@@ -152,7 +154,9 @@ fun PlantsCatalogScreen(
                         plant = selectedPlant,
                         onEditClick = { onEditPlant(selectedPlant) },
                         onToggleFavorite = { onToggleFavorite(selectedPlant) },
-                        onViewDetailClick = { onPlantSelect(selectedPlant) }
+                        onViewDetailClick = { onPlantSelect(selectedPlant) },
+                        onCopyClick = { onCopyPlant(selectedPlant) },
+                        onDeleteClick = { onDeletePlant(selectedPlant) }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -163,7 +167,10 @@ fun PlantsCatalogScreen(
                     plant = plant,
                     isSelected = selectedPlant?.id == plant.id,
                     onClick = { onPlantSelect(plant) },
-                    onToggleFavorite = { onToggleFavorite(plant) }
+                    onToggleFavorite = { onToggleFavorite(plant) },
+                    onEdit = { onEditPlant(plant) },
+                    onCopy = { onCopyPlant(plant) },
+                    onDelete = { onDeletePlant(plant) }
                 )
             }
 

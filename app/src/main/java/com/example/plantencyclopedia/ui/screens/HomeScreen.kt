@@ -56,6 +56,8 @@ fun HomeScreen(
     onPlantSelect: (Plant) -> Unit,
     onToggleFavorite: (Plant) -> Unit,
     onEditPlant: (Plant) -> Unit,
+    onCopyPlant: (Plant) -> Unit = {},
+    onDeletePlant: (Plant) -> Unit = {},
     onSeeAllClick: () -> Unit,
     snackbarHostState: SnackbarHostState
 ) {
@@ -165,7 +167,10 @@ fun HomeScreen(
                                 plant = plant,
                                 isSelected = selectedPlant?.id == plant.id,
                                 onClick = { onPlantSelect(plant) },
-                                onToggleFavorite = { onToggleFavorite(plant) }
+                                onToggleFavorite = { onToggleFavorite(plant) },
+                                onEdit = { onEditPlant(plant) },
+                                onCopy = { onCopyPlant(plant) },
+                                onDelete = { onDeletePlant(plant) }
                             )
                         }
                     }
@@ -180,7 +185,9 @@ fun HomeScreen(
                     plant = selectedPlant,
                     onEditClick = { onEditPlant(selectedPlant) },
                     onToggleFavorite = { onToggleFavorite(selectedPlant) },
-                    onViewDetailClick = { onPlantSelect(selectedPlant) }
+                    onViewDetailClick = { onPlantSelect(selectedPlant) },
+                    onCopyClick = { onCopyPlant(selectedPlant) },
+                    onDeleteClick = { onDeletePlant(selectedPlant) }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
