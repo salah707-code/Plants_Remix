@@ -76,6 +76,14 @@ fun PlantDetailScreen(
     var isImageZoomed by remember { mutableStateOf(false) }
     var showCopiedToast by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showAddImageSourceDialog by remember { mutableStateOf(false) }
+
+    // Gemini AI state
+    var geminiExpanded by remember { mutableStateOf(false) }
+    var geminiQuery by remember { mutableStateOf("") }
+    var geminiResponse by remember { mutableStateOf<String?>(null) }
+    var isGeminiLoading by remember { mutableStateOf(false) }
+    var geminiStatusMessage by remember { mutableStateOf<String?>(null) }
 
     val allImageList = remember(plant.images, plant.image) {
         val list = plant.getAllImagesList()
@@ -90,7 +98,7 @@ fun PlantDetailScreen(
         }
     }
 
-    // Photo picker for adding images
+    // Photo picker for adding images from gallery
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -98,6 +106,20 @@ fun PlantDetailScreen(
             coroutineScope.launch {
                 try {
                     val localPath = ImageStorageManager.saveImageFromUri(context, uri)
+                    onAddImage(plant, localPath)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    // Camera launcher for taking photo
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            coroutineScope.launch {
+                try {
+                    val localPath = ImageStorageManager.saveBitmap(context, bitmap)
                     onAddImage(plant, localPath)
                 } catch (_: Exception) {}
             }
@@ -523,11 +545,7 @@ fun PlantDetailScreen(
 
                             // Add Image button
                             Button(
-                                onClick = {
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
+                                onClick = { showAddImageSourceDialog = true },
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 5.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = SageGreen)
@@ -1206,6 +1224,211 @@ fun PlantDetailScreen(
                     }
                 }
 
+                // Gemini AI Botanical Assistant Card (Optional AI Exploration)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .testTag("gemini_botanical_card"),
+                    color = CardSurface,
+                    border = BorderStroke(1.dp, CardBorder),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(34.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(SageGreenContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = SageGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "المستشار النباتي الذكي (Gemini)",
+                                        color = SageGreenDark,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "ميزة مساعدة اختيارية للاستفسار والتوثيق النباتي",
+                                        color = TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { geminiExpanded = !geminiExpanded }
+                            ) {
+                                Icon(
+                                    imageVector = if (geminiExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                    contentDescription = null,
+                                    tint = SageGreen
+                                )
+                            }
+                        }
+
+                        // Medical Caution Notice (Mandatory Play Policy & Medical Safety Rule)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = HerbGoldContainer.copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, HerbGold.copy(alpha = 0.25f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = HerbGold,
+                                    modifier = Modifier.size(16.dp).padding(top = 1.dp)
+                                )
+                                Text(
+                                    text = "تنبيه هام: استشارات الذكاء الاصطناعي هي ميزة بحثية وتثقيفية فقط، ولا تغني مطلقاً عن الاستشارة الطبية أو الصيدلانية المعتمدة. المحتوى غير مؤكد سريرياً.",
+                                    fontSize = 10.5.sp,
+                                    color = TextPrimary,
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
+
+                        AnimatedVisibility(visible = geminiExpanded) {
+                            Column(modifier = Modifier.padding(top = 12.dp)) {
+                                OutlinedTextField(
+                                    value = geminiQuery,
+                                    onValueChange = { geminiQuery = it },
+                                    placeholder = { Text("اكتب سؤالك حول النبتة، فوائدها أو محاذيرها...", fontSize = 12.sp) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("gemini_query_input"),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = CardSurface,
+                                        unfocusedContainerColor = CardSurface,
+                                        focusedIndicatorColor = SageGreen,
+                                        unfocusedIndicatorColor = CardBorder
+                                    ),
+                                    maxLines = 3
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Button(
+                                    onClick = {
+                                        isGeminiLoading = true
+                                        geminiStatusMessage = null
+                                        coroutineScope.launch {
+                                            val queryText = if (geminiQuery.isBlank()) "ما هي أهم الفوائد والتحذيرات الطبية المثبتة لهذه النبتة؟" else geminiQuery
+                                            val result = com.example.plantencyclopedia.network.GeminiBotanicalService.consultBotanicalAssistant(
+                                                plant = plant,
+                                                userQuestion = queryText
+                                            )
+                                            isGeminiLoading = false
+                                            when (result) {
+                                                is com.example.plantencyclopedia.network.GeminiResult.Success -> {
+                                                    geminiResponse = result.response
+                                                    geminiStatusMessage = null
+                                                }
+                                                is com.example.plantencyclopedia.network.GeminiResult.Offline -> {
+                                                    geminiStatusMessage = "أنت حالياً في وضع عدم الاتصال. يتم تصفح موسوعة النباتات بكامل سجلاتها بنجاح أوفلاين."
+                                                }
+                                                is com.example.plantencyclopedia.network.GeminiResult.Error -> {
+                                                    geminiStatusMessage = result.message
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !isGeminiLoading,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = SageGreen),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    if (isGeminiLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            color = Color.White,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("جارٍ تحليل البيانات النباتية...", fontSize = 12.sp)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("طلب استشارة المستشار النباتي", fontSize = 12.sp)
+                                    }
+                                }
+
+                                if (geminiStatusMessage != null) {
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Text(
+                                        text = geminiStatusMessage ?: "",
+                                        fontSize = 11.5.sp,
+                                        color = TextSecondary,
+                                        lineHeight = 17.sp
+                                    )
+                                }
+
+                                if (geminiResponse != null) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Surface(
+                                        color = SageGreenContainer.copy(alpha = 0.5f),
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, SageGreen.copy(alpha = 0.3f))
+                                    ) {
+                                        Column(modifier = Modifier.padding(14.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "إفادة المستشار النباتي:",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = SageGreenDark
+                                                )
+                                                TextButton(
+                                                    onClick = {
+                                                        clipboardManager.setText(AnnotatedString(geminiResponse ?: ""))
+                                                    }
+                                                ) {
+                                                    Text("نسخ الرد", fontSize = 11.sp, color = SageGreen)
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                            Text(
+                                                text = geminiResponse ?: "",
+                                                fontSize = 12.sp,
+                                                color = TextPrimary,
+                                                lineHeight = 19.sp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Bottom Action Buttons
                 Column(
                     modifier = Modifier
@@ -1295,6 +1518,60 @@ fun PlantDetailScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmDialog = false }) {
                     Text("إلغاء")
+                }
+            }
+        )
+    }
+
+    // Add Image Source Dialog (Camera vs Gallery)
+    if (showAddImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddImageSourceDialog = false },
+            title = {
+                Text("إضافة صورة للنبات", fontWeight = FontWeight.Bold, color = SageGreenDark)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "اختر مصدر إضافة صورة جديدة إلى معرض هذا النبات:",
+                        fontSize = 13.sp,
+                        color = TextSecondary
+                    )
+                    Button(
+                        onClick = {
+                            showAddImageSourceDialog = false
+                            cameraLauncher.launch(null)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = SageGreen),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("التقاط صورة بالكاميرا")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showAddImageSourceDialog = false
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = SageGreen)
+                    ) {
+                        Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("اختيار من معرض الصور")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAddImageSourceDialog = false }) {
+                    Text("إلغاء", color = TextSecondary)
                 }
             }
         )

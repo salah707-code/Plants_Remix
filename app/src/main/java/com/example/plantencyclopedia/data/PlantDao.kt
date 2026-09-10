@@ -37,6 +37,18 @@ interface PlantDao {
     @Query("DELETE FROM plants WHERE id = :id")
     suspend fun deleteById(id: Int)
 
+    @Query("DELETE FROM plants WHERE id IN (:ids)")
+    suspend fun deleteMultiple(ids: List<Int>)
+
+    @Query("SELECT * FROM plants WHERE id IN (:ids)")
+    suspend fun getPlantsByIds(ids: List<Int>): List<Plant>
+
+    @Query("SELECT * FROM plants WHERE LOWER(TRIM(scientific)) = LOWER(TRIM(:scientific)) LIMIT 1")
+    suspend fun findByScientific(scientific: String): Plant?
+
+    @Query("SELECT * FROM plants WHERE LOWER(TRIM(name)) = LOWER(TRIM(:name)) LIMIT 1")
+    suspend fun findByName(name: String): Plant?
+
     @Query("DELETE FROM plants")
     suspend fun deleteAll()
 

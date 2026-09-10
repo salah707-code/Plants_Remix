@@ -10,6 +10,7 @@ import com.example.plantencyclopedia.data.InitialPlantData
 import com.example.plantencyclopedia.data.Plant
 import com.example.plantencyclopedia.data.PlantDatabase
 import com.example.plantencyclopedia.data.PlantRepository
+import com.example.plantencyclopedia.domain.ArabicTextNormalizer
 import com.example.plantencyclopedia.domain.PlantAnalyticsUseCase
 import com.example.plantencyclopedia.domain.PlantEncyclopediaStats
 import com.example.plantencyclopedia.images.ImageStorageManager
@@ -119,14 +120,15 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
             _sortBy
         ) { plants, query, filter, familyFilter, sortOption ->
             var list = plants.filter { plant ->
-                val q = query.trim().lowercase()
+                val q = query.trim()
                 val matchesText = q.isBlank() ||
-                        plant.name.lowercase().contains(q) ||
-                        plant.english.lowercase().contains(q) ||
-                        plant.scientific.lowercase().contains(q) ||
-                        plant.family.lowercase().contains(q) ||
-                        plant.chemicals.any { it.lowercase().contains(q) } ||
-                        plant.note.lowercase().contains(q)
+                        ArabicTextNormalizer.containsNormalized(plant.name, q) ||
+                        ArabicTextNormalizer.containsNormalized(plant.english, q) ||
+                        ArabicTextNormalizer.containsNormalized(plant.scientific, q) ||
+                        ArabicTextNormalizer.containsNormalized(plant.family, q) ||
+                        plant.chemicals.any { ArabicTextNormalizer.containsNormalized(it, q) } ||
+                        ArabicTextNormalizer.containsNormalized(plant.note, q) ||
+                        plant.tags.any { ArabicTextNormalizer.containsNormalized(it, q) }
 
                 val matchesUsage = when (filter) {
                     "الكل" -> true
@@ -309,6 +311,20 @@ class PlantViewModel(application: Application) : AndroidViewModel(application) {
                 _selectedPlant.value = allPlants.value.firstOrNull { it.id != plant.id }
             }
             _actionMessage.value = "تم حذف نبات ${plant.name} بنجاح"
+        }
+    }
+
+    fun deleteMultiplePlants(ids: List<Int>) {
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            repository.deleteMultiple(ids)
+            if (ids.contains(_detailPlant.value?.id)) {
+                _detailPlant.value = null
+            }
+            if (ids.contains(_selectedPlant.value?.id)) {
+                _selectedPlant.value = allPlants.value.firstOrNull { !ids.contains(it.id) }
+            }
+            _actionMessage.value = "تم حذف ${ids.size} نباتات بنجاح"
         }
     }
 

@@ -46,6 +46,7 @@ import com.example.plantencyclopedia.ui.PlantViewModel
 import com.example.plantencyclopedia.ui.components.AddPlantDialog
 import com.example.plantencyclopedia.ui.components.EditPlantDialog
 import com.example.plantencyclopedia.ui.screens.FamiliesScreen
+import com.example.plantencyclopedia.ui.screens.FavoritesScreen
 import com.example.plantencyclopedia.ui.screens.HomeScreen
 import com.example.plantencyclopedia.ui.screens.LoginScreen
 import com.example.plantencyclopedia.ui.screens.PlantDetailScreen
@@ -230,7 +231,19 @@ fun PlantEncyclopediaApp(viewModel: PlantViewModel) {
                         onEditPlant = viewModel::onStartEditPlant,
                         onCopyPlant = viewModel::copyPlant,
                         onDeletePlant = viewModel::deletePlant,
+                        onDeleteMultiplePlants = viewModel::deleteMultiplePlants,
                         onAddPlantClick = { viewModel.onShowAddDialog(true) }
+                    )
+
+                    "المفضلة" -> FavoritesScreen(
+                        favoritePlants = allPlants.filter { it.isFavorite },
+                        selectedPlant = selectedPlant,
+                        onPlantSelect = viewModel::onPlantSelected,
+                        onToggleFavorite = viewModel::toggleFavorite,
+                        onEditPlant = viewModel::onStartEditPlant,
+                        onCopyPlant = viewModel::copyPlant,
+                        onDeletePlant = viewModel::deletePlant,
+                        onExploreCatalogClick = { viewModel.onTabSelected("النباتات") }
                     )
 
                     "الفصائل" -> FamiliesScreen(

@@ -37,6 +37,30 @@ class PlantRepository(private val plantDao: PlantDao) {
         plantDao.deleteById(id)
     }
 
+    suspend fun deleteMultiple(ids: List<Int>) {
+        if (ids.isNotEmpty()) {
+            plantDao.deleteMultiple(ids)
+        }
+    }
+
+    suspend fun getPlantsByIds(ids: List<Int>): List<Plant> {
+        return if (ids.isEmpty()) emptyList() else plantDao.getPlantsByIds(ids)
+    }
+
+    suspend fun findDuplicate(scientific: String, name: String, excludeId: Int? = null): Plant? {
+        val s = scientific.trim()
+        if (s.isNotBlank()) {
+            val bySci = plantDao.findByScientific(s)
+            if (bySci != null && bySci.id != excludeId) return bySci
+        }
+        val n = name.trim()
+        if (n.isNotBlank()) {
+            val byName = plantDao.findByName(n)
+            if (byName != null && byName.id != excludeId) return byName
+        }
+        return null
+    }
+
     suspend fun deleteAll() {
         plantDao.deleteAll()
     }

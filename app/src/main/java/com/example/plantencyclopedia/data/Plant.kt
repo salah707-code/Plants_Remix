@@ -1,10 +1,19 @@
 package com.example.plantencyclopedia.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 
-@Entity(tableName = "plants")
+@Entity(
+    tableName = "plants",
+    indices = [
+        Index(value = ["scientific"]),
+        Index(value = ["family"]),
+        Index(value = ["isFavorite"]),
+        Index(value = ["name"])
+    ]
+)
 data class Plant(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
@@ -22,6 +31,7 @@ data class Plant(
     val preparation: String = "",
     val precautions: String = "",
     val growthForm: String = "",
+    val tags: List<String> = emptyList(),
     val isFavorite: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),

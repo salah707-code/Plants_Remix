@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Difference
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Search
@@ -81,7 +83,8 @@ import com.example.plantencyclopedia.ui.theme.VerifiedBadgeText
 
 @Composable
 fun TopBar(
-    onNotificationClick: () -> Unit = {}
+    onNotificationClick: () -> Unit = {},
+    onFavoritesClick: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -123,22 +126,45 @@ fun TopBar(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(CardSurface)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                .clickable { onNotificationClick() }
-                .testTag("bell_button"),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.NotificationsNone,
-                contentDescription = "الإشعارات",
-                tint = SageGreen,
-                modifier = Modifier.size(20.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardSurface)
+                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                    .clickable { onFavoritesClick() }
+                    .testTag("top_favorites_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FavoriteBorder,
+                    contentDescription = "المفضلة",
+                    tint = SageGreen,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardSurface)
+                    .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                    .clickable { onNotificationClick() }
+                    .testTag("bell_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsNone,
+                    contentDescription = "الإشعارات",
+                    tint = SageGreen,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -343,7 +369,10 @@ fun PlantRowItem(
     onToggleFavorite: () -> Unit,
     onEdit: (() -> Unit)? = null,
     onCopy: (() -> Unit)? = null,
-    onDelete: (() -> Unit)? = null
+    onDelete: (() -> Unit)? = null,
+    isMultiSelectMode: Boolean = false,
+    isSelectedForBulk: Boolean = false,
+    onToggleBulkSelect: (() -> Unit)? = null
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -353,12 +382,18 @@ fun PlantRowItem(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onClick() }
+            .clickable {
+                if (isMultiSelectMode) {
+                    onToggleBulkSelect?.invoke()
+                } else {
+                    onClick()
+                }
+            }
             .testTag("plant_row_${plant.id}"),
-        color = if (isSelected) SageGreenLight.copy(alpha = 0.5f) else CardSurface,
+        color = if (isSelectedForBulk) SageGreenContainer.copy(alpha = 0.7f) else if (isSelected) SageGreenLight.copy(alpha = 0.5f) else CardSurface,
         border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isSelected) SageGreen else CardBorder
+            if (isSelectedForBulk) 1.5.dp else 1.dp,
+            if (isSelectedForBulk) SageGreen else if (isSelected) SageGreen else CardBorder
         ),
         shape = RoundedCornerShape(14.dp)
     ) {
@@ -368,6 +403,18 @@ fun PlantRowItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (isMultiSelectMode) {
+                androidx.compose.material3.Checkbox(
+                    checked = isSelectedForBulk,
+                    onCheckedChange = { onToggleBulkSelect?.invoke() },
+                    colors = androidx.compose.material3.CheckboxDefaults.colors(
+                        checkedColor = SageGreen,
+                        checkmarkColor = Color.White
+                    ),
+                    modifier = Modifier.padding(end = 6.dp)
+                )
+            }
+
             AsyncImage(
                 model = plant.image,
                 contentDescription = plant.name,

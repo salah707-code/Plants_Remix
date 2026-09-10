@@ -42,7 +42,7 @@ import com.example.plantencyclopedia.ui.theme.TextMuted
 import com.example.plantencyclopedia.ui.theme.TextSecondary
 import kotlinx.coroutines.launch
 
-private val filterCategories = listOf("الكل", "علاجية", "غذائية", "عطرية", "تجميلية")
+private val filterCategories = listOf("الكل", "المفضلة", "علاجية", "غذائية", "عطرية", "تجميلية")
 
 @Composable
 fun HomeScreen(
@@ -77,6 +77,9 @@ fun HomeScreen(
                     scope.launch {
                         snackbarHostState.showSnackbar("لا توجد إشعارات جديدة حالياً")
                     }
+                },
+                onFavoritesClick = {
+                    onFilterSelect("المفضلة")
                 }
             )
         }
